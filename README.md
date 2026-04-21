@@ -1,3 +1,22 @@
+# Godot Engine — multi-assembly C# fork
+
+> **Fork notice.** This repository is a fork of [`godotengine/godot`](https://github.com/godotengine/godot) maintained to ship a small set of C# workflow patches that haven't yet made it through upstream review. Upstream's original README is preserved below, unchanged.
+
+## About this fork
+
+**Purpose.** Upstream's `modules/mono` backend assumes all C# code lives in the main Godot project. This fork removes that assumption, so you can split your project across multiple C# assemblies — referenced projects, class libraries, and NuGet packages — the way a normal .NET solution works. It also improves the external-IDE workflow.
+
+**Changes on top of upstream `4.6.2-stable`:**
+
+- **Multi-assembly C# script support** (new `csharp://` path scheme). Scripts defined in `<ProjectReference>` projects and NuGet packages are discovered, registered, and fully usable in the editor — including `[GlobalClass]`, `[Export]`, transitive dependencies, and hot reload. Based on unmerged upstream PR [godotengine/godot#117452](https://github.com/godotengine/godot/pull/117452). Example project: [matelq/GodotMultiAssemblyReference](https://github.com/matelq/GodotMultiAssemblyReference).
+- **Automatic C# build on editor focus.** Opt-in editor setting (`dotnet/editor/automatic_build`) that rebuilds the C# project when Godot regains focus after external IDE edits, eliminating the manual Build button click. Based on unmerged upstream PR [godotengine/godot#103657](https://github.com/godotengine/godot/pull/103657).
+
+**Releases.** Prebuilt Windows x64 editor + export templates (Mono/.NET enabled) are attached to [GitHub Releases](https://github.com/matelq/godot/releases), tagged as `<upstream-version>-conv.<N>` — e.g. `4.6.2-conv.1`. Binaries are **unsigned**; Windows SmartScreen may prompt on first launch.
+
+**Tracking upstream.** The fork rebases onto new upstream `4.6.x-stable` patch releases as they land, and will move to `4.7` after a short verification cycle when upstream ships it. See the commit log on the `fork/4.6` branch for the exact patch stack.
+
+---
+
 # Godot Engine
 
 <p align="center">
