@@ -18,7 +18,7 @@
     <Description>Godot C# Core API.</Description>
     <Authors>Godot Engine contributors</Authors>
 
-    <PackageId>GodotSharp</PackageId>
+    <PackageId>CrackTower.Godot.Sharp</PackageId>
     <Version>4.6.2</Version>
     <PackageVersion>$(PackageVersion_GodotSharp)</PackageVersion>
     <RepositoryUrl>https://github.com/godotengine/godot/tree/master/modules/mono/glue/GodotSharp/GodotSharp</RepositoryUrl>

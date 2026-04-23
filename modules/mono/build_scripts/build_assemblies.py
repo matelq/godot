@@ -288,6 +288,13 @@ def generate_sdk_package_versions():
             version_status = version_status[:pos] + "." + version_status[pos:]
         version_str += "-" + version_status
 
+    # CrackTower fork: append fork-release suffix so that nuget.org can
+    # distinguish multiple fork rebuilds against the same upstream base.
+    # Bump when re-publishing against an unchanged upstream version.
+    fork_suffix = os.environ.get("GODOT_FORK_PACKAGE_SUFFIX", "conv.1")
+    if version_status == "stable" and fork_suffix:
+        version_str += "-" + fork_suffix
+
     import version
 
     version_defines = (
