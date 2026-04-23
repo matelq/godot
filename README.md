@@ -13,6 +13,33 @@
 
 **Releases.** Prebuilt Windows x64 editor + export templates (Mono/.NET enabled) are attached to [GitHub Releases](https://github.com/matelq/godot/releases), tagged as `<upstream-version>-conv.<N>` — e.g. `4.6.2-conv.1`. Binaries are **unsigned**; Windows SmartScreen may prompt on first launch.
 
+## Using the fork in a C# project
+
+> **⚠️ Do not use the default `Godot.NET.Sdk/4.6.2` from nuget.org with this editor.** Upstream's 4.6.2 NuGet package ships the unpatched source generator and silently produces broken `res://../Script.cs` paths for assembly-backed `[GlobalClass]` scripts, which the editor will then fail to load at runtime.
+
+The fork publishes its own NuGet packages to nuget.org under the `CrackTower.Godot.*` prefix. Reference them directly in your `.csproj`:
+
+```xml
+<Project Sdk="CrackTower.Godot.NET.Sdk/4.6.2-conv.1">
+  <!-- ... -->
+</Project>
+```
+
+This transitively pulls in the fork's runtime assemblies and source generator — everything resolves from nuget.org, no manual setup:
+
+| Package | Replaces |
+|---|---|
+| [`CrackTower.Godot.NET.Sdk`](https://www.nuget.org/packages/CrackTower.Godot.NET.Sdk) | `Godot.NET.Sdk` |
+| [`CrackTower.Godot.Sharp`](https://www.nuget.org/packages/CrackTower.Godot.Sharp) | `GodotSharp` |
+| [`CrackTower.Godot.SharpEditor`](https://www.nuget.org/packages/CrackTower.Godot.SharpEditor) | `GodotSharpEditor` |
+| [`CrackTower.Godot.SourceGenerators`](https://www.nuget.org/packages/CrackTower.Godot.SourceGenerators) | `Godot.SourceGenerators` |
+
+Assembly names (`GodotSharp.dll`, etc.) are unchanged — the engine loads by assembly name, not NuGet ID, so runtime behaviour is identical to a hypothetical upstream release with the same patches.
+
+A working example is at [matelq/GodotMultiAssemblyReference `fork/4.6.2-conv.1`](https://github.com/matelq/GodotMultiAssemblyReference/tree/fork/4.6.2-conv.1).
+
+**Known caveat:** the editor's New C# Project dialog still templates `<Project Sdk="Godot.NET.Sdk/...">`. After creating a fresh C# project, hand-edit the first line of the generated `.csproj` to `CrackTower.Godot.NET.Sdk/<release-version>`. This will be fixed in a future build.
+
 **Tracking upstream.** The fork rebases onto new upstream `4.6.x-stable` patch releases as they land, and will move to `4.7` after a short verification cycle when upstream ships it. See the commit log on the `fork/4.6` branch for the exact patch stack.
 
 ---
