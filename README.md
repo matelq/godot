@@ -38,8 +38,6 @@ Assembly names (`GodotSharp.dll`, etc.) are unchanged — the engine loads by as
 
 A working example is at [matelq/GodotMultiAssemblyReference `fork/4.6.2-conv.1`](https://github.com/matelq/GodotMultiAssemblyReference/tree/fork/4.6.2-conv.1).
 
-**Known caveat:** the editor's New C# Project dialog still templates `<Project Sdk="Godot.NET.Sdk/...">`. After creating a fresh C# project, hand-edit the first line of the generated `.csproj` to `CrackTower.Godot.NET.Sdk/<release-version>`. This will be fixed in a future build.
-
 **Tracking upstream.** The fork rebases onto new upstream `4.6.x-stable` patch releases as they land, and will move to `4.7` after a short verification cycle when upstream ships it. See the commit log on the `fork/4.6` branch for the exact patch stack.
 
 ---
