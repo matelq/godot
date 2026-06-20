@@ -9,7 +9,7 @@
     <Description>Core C# source generator for Godot projects.</Description>
     <Authors>Godot Engine contributors</Authors>
 
-    <PackageId>Godot.SourceGenerators</PackageId>
+    <PackageId>CrackTower.Godot.SourceGenerators</PackageId>
     <Version>4.7.2</Version>
     <PackageVersion>$(PackageVersion_Godot_SourceGenerators)</PackageVersion>
     <RepositoryUrl>https://github.com/godotengine/godot/tree/master/modules/mono/editor/Godot.NET.Sdk/Godot.SourceGenerators</RepositoryUrl>
@@ -35,6 +35,6 @@
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 
     <!-- Package the props file -->
-    <None Include="Godot.SourceGenerators.props" Pack="true" PackagePath="build" Visible="true" />
+    <None Include="Godot.SourceGenerators.props" Pack="true" PackagePath="build/CrackTower.Godot.SourceGenerators.props" Visible="true" />
   </ItemGroup>
 </Project>
