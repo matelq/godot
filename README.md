@@ -1,3 +1,47 @@
+# Godot Engine — multi-assembly C# fork
+
+> **Fork notice.** This repository is a fork of [`godotengine/godot`](https://github.com/godotengine/godot) maintained to ship a small set of C# workflow patches that haven't yet made it through upstream review. Upstream's original README is preserved below, unchanged.
+
+## About this fork
+
+**Purpose.** Upstream's `modules/mono` backend assumes all C# code lives in the main Godot project. This fork removes that assumption, so you can split your project across multiple C# assemblies — referenced projects, class libraries, and NuGet packages — the way a normal .NET solution works. It also improves the external-IDE workflow.
+
+**Changes on top of upstream `4.7-stable`:**
+
+- **Multi-assembly C# script support** (new `csharp://` path scheme). Scripts defined in `<ProjectReference>` projects and NuGet packages are discovered, registered, and fully usable in the editor — including `[GlobalClass]`, `[Export]`, transitive dependencies, and hot reload. Based on unmerged upstream PR [godotengine/godot#117452](https://github.com/godotengine/godot/pull/117452). Example project: [matelq/GodotMultiAssemblyReference](https://github.com/matelq/GodotMultiAssemblyReference).
+- **Automatic C# build on editor focus.** Opt-in editor setting (`dotnet/editor/automatic_build`) that rebuilds the C# project when Godot regains focus after external IDE edits, eliminating the manual Build button click. Based on unmerged upstream PR [godotengine/godot#103657](https://github.com/godotengine/godot/pull/103657).
+
+**Releases.** Prebuilt Windows x64 editor + export templates (Mono/.NET enabled) are attached to [GitHub Releases](https://github.com/matelq/godot/releases), tagged as `<upstream-version>-conv.<N>` — e.g. `4.7-conv.1`. Binaries are **unsigned**; Windows SmartScreen may prompt on first launch.
+
+## Using the fork in a C# project
+
+> **⚠️ Do not use the default `Godot.NET.Sdk/4.7.0` from nuget.org with this editor.** Upstream's 4.7.0 NuGet package ships the unpatched source generator and silently produces broken `res://../Script.cs` paths for assembly-backed `[GlobalClass]` scripts, which the editor will then fail to load at runtime.
+
+The fork publishes its own NuGet packages to nuget.org under the `CrackTower.Godot.*` prefix. Reference them directly in your `.csproj`:
+
+```xml
+<Project Sdk="CrackTower.Godot.NET.Sdk/4.7.0-conv.1">
+  <!-- ... -->
+</Project>
+```
+
+This transitively pulls in the fork's runtime assemblies and source generator — everything resolves from nuget.org, no manual setup:
+
+| Package | Replaces |
+|---|---|
+| [`CrackTower.Godot.NET.Sdk`](https://www.nuget.org/packages/CrackTower.Godot.NET.Sdk) | `Godot.NET.Sdk` |
+| [`CrackTower.Godot.Sharp`](https://www.nuget.org/packages/CrackTower.Godot.Sharp) | `GodotSharp` |
+| [`CrackTower.Godot.SharpEditor`](https://www.nuget.org/packages/CrackTower.Godot.SharpEditor) | `GodotSharpEditor` |
+| [`CrackTower.Godot.SourceGenerators`](https://www.nuget.org/packages/CrackTower.Godot.SourceGenerators) | `Godot.SourceGenerators` |
+
+Assembly names (`GodotSharp.dll`, etc.) are unchanged — the engine loads by assembly name, not NuGet ID, so runtime behaviour is identical to a hypothetical upstream release with the same patches.
+
+A working example is at [matelq/GodotMultiAssemblyReference `fork/4.7-conv.1`](https://github.com/matelq/GodotMultiAssemblyReference/tree/fork/4.7-conv.1).
+
+**Tracking upstream.** The fork rebases onto new upstream `4.7.x-stable` patch releases as they land. See the commit log on the `fork/4.7` branch for the exact patch stack.
+
+---
+
 # Godot Engine
 
 <p align="center">
