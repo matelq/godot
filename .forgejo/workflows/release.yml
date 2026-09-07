@@ -28,7 +28,7 @@ jobs:
       - name: Checkout
         uses: https://code.forgejo.org/actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: recursive
 
       - name: Install build toolchain
