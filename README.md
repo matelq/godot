@@ -20,7 +20,7 @@
 The fork publishes its own NuGet packages to nuget.org under the `CrackTower.Godot.*` prefix. Reference them directly in your `.csproj`:
 
 ```xml
-<Project Sdk="CrackTower.Godot.NET.Sdk/4.7.0-conv.1">
+<Project Sdk="CrackTower.Godot.NET.Sdk/4.7.2-conv.1">
   <!-- ... -->
 </Project>
 ```
