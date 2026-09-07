@@ -31,6 +31,15 @@ jobs:
           fetch-depth: 1
           submodules: recursive
 
+      - name: Restore scons cache
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: .scons-cache
+          key: scons-win-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            scons-win-${{ github.ref_name }}-
+            scons-win-
+
       - name: Install build toolchain
         run: |
           apt-get update
@@ -71,14 +80,17 @@ jobs:
       - name: Build Windows editor
         run: |
           scons platform=windows target=editor module_mono_enabled=yes \
-            use_mingw=yes d3d12=no accesskit=no debug_symbols=no -j4
+            use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
+            cache_path=.scons-cache cache_limit=8 -j4
 
       - name: Build Windows export templates
         run: |
           scons platform=windows target=template_debug module_mono_enabled=yes \
-            use_mingw=yes d3d12=no accesskit=no debug_symbols=no -j4
+            use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
+            cache_path=.scons-cache cache_limit=8 -j4
           scons platform=windows target=template_release module_mono_enabled=yes \
-            use_mingw=yes d3d12=no accesskit=no debug_symbols=no -j4
+            use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
+            cache_path=.scons-cache cache_limit=8 -j4
 
       - name: Build .NET assemblies and pack nupkgs
         run: |
