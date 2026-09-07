@@ -10,7 +10,7 @@ jobs:
   build-windows:
     runs-on: docker
     container:
-      image: ubuntu:24.04
+      image: catthehacker/ubuntu:act-24.04
 
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
