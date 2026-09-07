@@ -51,7 +51,8 @@ jobs:
 
       - name: Install .NET SDK
         run: |
-          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          curl -sSL --connect-timeout 10 --max-time 60 --retry 5 --retry-connrefused \
+            https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
           bash /tmp/dotnet-install.sh --channel 10.0 --install-dir /opt/dotnet
           echo "/opt/dotnet" >> "$GITHUB_PATH"
 
@@ -70,7 +71,7 @@ jobs:
         run: |
           GV="${{ steps.ver.outputs.godot_version }}"
           cd /tmp
-          curl -sSL -o godot-linux.zip \
+          curl -sSL --connect-timeout 10 --max-time 120 --retry 5 --retry-connrefused -o godot-linux.zip \
             "https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_mono_linux_x86_64.zip"
           unzip -q godot-linux.zip -d godot-linux
           cd "$GITHUB_WORKSPACE"
