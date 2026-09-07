@@ -2,9 +2,15 @@ name: release
 
 on:
   push:
+    branches:
+      - "fork/**"
     tags:
       - "*-conv.*"
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-windows:
