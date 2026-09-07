@@ -82,16 +82,16 @@ jobs:
         run: |
           scons platform=windows target=editor module_mono_enabled=yes \
             use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
-            cache_path=.scons-cache cache_limit=8 -j4
+            cache_path=.scons-cache cache_limit=8 -j3
 
       - name: Build Windows export templates
         run: |
           scons platform=windows target=template_debug module_mono_enabled=yes \
             use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
-            cache_path=.scons-cache cache_limit=8 -j4
+            cache_path=.scons-cache cache_limit=8 -j3
           scons platform=windows target=template_release module_mono_enabled=yes \
             use_mingw=yes d3d12=no accesskit=no debug_symbols=no \
-            cache_path=.scons-cache cache_limit=8 -j4
+            cache_path=.scons-cache cache_limit=8 -j3
 
       - name: Build .NET assemblies and pack nupkgs
         run: |
