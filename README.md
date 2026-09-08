@@ -11,7 +11,7 @@
 - **Multi-assembly C# script support** (new `csharp://` path scheme). Scripts defined in `<ProjectReference>` projects and NuGet packages are discovered, registered, and fully usable in the editor — including `[GlobalClass]`, `[Export]`, transitive dependencies, and hot reload. Based on unmerged upstream PR [godotengine/godot#117452](https://github.com/godotengine/godot/pull/117452). Example project: [matelq/GodotMultiAssemblyReference](https://github.com/matelq/GodotMultiAssemblyReference).
 - **Automatic C# build on editor focus.** Opt-in editor setting (`dotnet/editor/automatic_build`) that rebuilds the C# project when Godot regains focus after external IDE edits, eliminating the manual Build button click. Based on unmerged upstream PR [godotengine/godot#103657](https://github.com/godotengine/godot/pull/103657).
 
-**Releases.** Prebuilt Windows x64 editor + export templates (Mono/.NET enabled) are attached to [GitHub Releases](https://github.com/matelq/godot/releases), tagged as `<upstream-version>-conv.<N>` — e.g. `4.7-conv.1`. Binaries are **unsigned**; Windows SmartScreen may prompt on first launch.
+**Releases.** Prebuilt editor + export templates (Mono/.NET enabled) for Windows x64 and macOS universal are attached to [GitHub Releases](https://github.com/matelq/godot/releases), tagged as `<upstream-version>.<fork-revision>` — e.g. `4.7.2.1`. The fourth part bumps when the fork is rebuilt against an unchanged upstream version. Binaries are **unsigned**; Windows SmartScreen and macOS Gatekeeper may prompt on first launch.
 
 ## Using the fork in a C# project
 
@@ -20,7 +20,7 @@
 The fork publishes its own NuGet packages to nuget.org under the `CrackTower.Godot.*` prefix. Reference them directly in your `.csproj`:
 
 ```xml
-<Project Sdk="CrackTower.Godot.NET.Sdk/4.7.2-conv.1">
+<Project Sdk="CrackTower.Godot.NET.Sdk/4.7.2.1">
   <!-- ... -->
 </Project>
 ```

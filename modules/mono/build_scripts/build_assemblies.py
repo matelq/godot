@@ -303,12 +303,14 @@ def generate_sdk_package_versions():
         godotsharp_version_str += f"-{godotsharp_version_status}"
         godot_dotnet_version_str += f"-{godot_dotnet_version_status}"
 
-    # CrackTower fork: append fork-release suffix so that nuget.org can
-    # distinguish multiple fork rebuilds against the same upstream base.
+    # CrackTower fork: append a revision number so that nuget.org can distinguish
+    # multiple fork rebuilds against the same upstream base. A fourth version part
+    # keeps these stable releases; a "-suffix" would make them SemVer pre-releases,
+    # which NuGet hides from restore unless callers opt in.
     # Bump when re-publishing against an unchanged upstream version.
-    fork_suffix = os.environ.get("GODOT_FORK_PACKAGE_SUFFIX", "conv.1")
-    if version_status == "stable" and fork_suffix:
-        godotsharp_version_str += "-" + fork_suffix
+    fork_revision = os.environ.get("GODOT_FORK_PACKAGE_REVISION", "1")
+    if version_status == "stable" and fork_revision:
+        godotsharp_version_str += "." + fork_revision
 
     import version
 

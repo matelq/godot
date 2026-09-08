@@ -3,7 +3,7 @@ name: 📦 Fork Release
 on:
   push:
     tags:
-      - "*-conv.*"
+      - "[0-9]+.[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
 
 concurrency:
@@ -25,18 +25,24 @@ jobs:
     outputs:
       godot_version: ${{ steps.ver.outputs.godot_version }}
       tag: ${{ steps.ver.outputs.tag }}
-      conv_suffix: ${{ steps.ver.outputs.conv_suffix }}
+      revision: ${{ steps.ver.outputs.revision }}
     steps:
       - uses: actions/checkout@v4
 
+      # Fork releases are <upstream version>.<fork revision>, e.g. 4.7.2.1.
+      # The fourth part bumps for each rebuild against the same upstream base.
       - name: Derive version info
         id: ver
         run: |
           GV=$(python3 -c "d={}; exec(open('version.py').read(), d); print(f\"{d['major']}.{d['minor']}.{d['patch']}\")")
-          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${GV}-conv.1"; fi
+          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${GV}.1"; fi
+          REV="${TAG##*.}"
+          if [ "${TAG%.*}" != "$GV" ]; then
+            echo "::error::Tag '$TAG' does not match version.py base '$GV'"; exit 1
+          fi
           echo "godot_version=${GV}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "conv_suffix=${TAG#${GV}-}" >> "$GITHUB_OUTPUT"
+          echo "revision=${REV}" >> "$GITHUB_OUTPUT"
 
       # Our patches add no ClassDB entries, so the generated glue is identical to
       # upstream's — reuse their binary instead of building an editor just for this.
@@ -73,7 +79,7 @@ jobs:
 
       - name: Build assemblies and pack nupkgs
         env:
-          GODOT_FORK_PACKAGE_SUFFIX: ${{ needs.glue.outputs.conv_suffix }}
+          GODOT_FORK_PACKAGE_REVISION: ${{ needs.glue.outputs.revision }}
         run: |
           python3 modules/mono/build_scripts/build_assemblies.py \
             --godot-output-dir ./bin --push-nupkgs-local ./nupkgs
