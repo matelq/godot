@@ -50,9 +50,9 @@ EXPECTED = {
 
 
 def run(cmd):
-    # Point NuGet at our config explicitly. Relying on discovery is not portable:
-    # on Linux the walk-up search does not pick this file up, restore then falls
-    # back to nuget.org alone, and the fixture modules fail to resolve.
+    # Point NuGet at our config explicitly rather than relying on the walk-up
+    # search, so a stray config elsewhere in the tree cannot quietly replace the
+    # feed and send the restore to nuget.org instead.
     cmd = list(cmd) + [f"-p:RestoreConfigFile={HERE / 'nuget.config'}"]
     print(f"+ {' '.join(str(c) for c in cmd)}", flush=True)
     subprocess.run(cmd, check=True, cwd=HERE)
