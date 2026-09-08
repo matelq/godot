@@ -312,6 +312,11 @@ def generate_sdk_package_versions():
     if version_status == "stable" and fork_revision:
         godotsharp_version_str += "." + fork_revision
 
+    # The upstream GodotSharp package this fork is based on. The SDK references it
+    # with all assets excluded, to stop third-party packages from dragging in
+    # upstream's GodotSharp.dll alongside ours — see Sdk.targets.
+    upstream_godotsharp_version_str = "{major}.{minor}.{patch}".format(**version_info)
+
     import version
 
     version_defines = (
@@ -331,6 +336,7 @@ def generate_sdk_package_versions():
     <PackageVersion_Godot_NET_Sdk>{godotsharp_version_str}</PackageVersion_Godot_NET_Sdk>
     <PackageVersion_Godot_SourceGenerators>{godotsharp_version_str}</PackageVersion_Godot_SourceGenerators>
     <PackageVersion_GodotDotNet>{godot_dotnet_version_str}</PackageVersion_GodotDotNet>
+    <PackageVersion_UpstreamGodotSharp>{upstream_godotsharp_version_str}</PackageVersion_UpstreamGodotSharp>
     <_GodotVersionConstants>{";".join(version_defines)}</_GodotVersionConstants>
   </PropertyGroup>
 </Project>

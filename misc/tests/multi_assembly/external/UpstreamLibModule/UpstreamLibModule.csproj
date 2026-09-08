@@ -1,0 +1,21 @@
+<!--
+  Stands in for a real third-party Godot library — Chickensoft's packages and
+  everything like them. It knows nothing about the fork and is built against
+  upstream's GodotSharp, exactly as such packages are.
+
+  Its purpose here is to drag upstream's GodotSharp into the main project's
+  dependency graph. Upstream ships a GodotSharp.dll with the same assembly
+  identity as the fork's, so without the SDK excluding it the main project can
+  end up compiling against upstream's API and fail in generated code.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GodotSharp" Version="$(UpstreamGodotSharpVersion)" />
+  </ItemGroup>
+</Project>

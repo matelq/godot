@@ -15,6 +15,9 @@
     <!-- ExternalModule pulls in TransitiveModule, so the project references one
          assembly and has to discover scripts in two. -->
     <PackageReference Include="ExternalModule" Version="1.0.0" />
+    <!-- A third-party library built against upstream GodotSharp. The SDK has to
+         keep upstream's identically named assembly out of this build. -->
+    <PackageReference Include="UpstreamLibModule" Version="1.0.0" />
     <ProjectReference Include="..\InTreeModule\InTreeModule.csproj" />
   </ItemGroup>
 </Project>

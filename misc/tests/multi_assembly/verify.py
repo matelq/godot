@@ -74,23 +74,30 @@ def prepare(version):
     cache = Path.home() / ".nuget" / "packages"
     for name in ("cracktower.godot.net.sdk", "cracktower.godot.sharp",
                  "cracktower.godot.sharpeditor", "cracktower.godot.sourcegenerators",
-                 "externalmodule", "transitivemodule"):
+                 "externalmodule", "transitivemodule", "upstreamlibmodule"):
         shutil.rmtree(cache / name, ignore_errors=True)
     shutil.rmtree(FIXTURE / ".godot", ignore_errors=True)
     for stale in FEED.glob("ExternalModule.*.nupkg"):
+        stale.unlink()
+    for stale in FEED.glob("UpstreamLibModule.*.nupkg"):
         stale.unlink()
     for stale in FEED.glob("TransitiveModule.*.nupkg"):
         stale.unlink()
 
 
 def build(version):
+    # The fork version is <upstream base>.<revision>, so drop the last part to
+    # get the upstream GodotSharp the fixture's "third-party" module depends on.
+    upstream = version.rsplit(".", 1)[0]
     prop = f"-p:GodotForkVersion={version}"
+    prop_upstream = f"-p:UpstreamGodotSharpVersion={upstream}"
     # TransitiveModule first: ExternalModule consumes it as a package, so it has
     # to be in the feed before ExternalModule restores.
-    for module in ("TransitiveModule", "ExternalModule"):
+    for module in ("TransitiveModule", "ExternalModule", "UpstreamLibModule"):
         run(["dotnet", "pack", str(HERE / "external" / module / f"{module}.csproj"),
-             "-c", "Release", "-o", str(FEED), prop])
-    run(["dotnet", "build", str(FIXTURE / "MainProject" / "MainProject.csproj"), prop])
+             "-c", "Release", "-o", str(FEED), prop, prop_upstream])
+    run(["dotnet", "build", str(FIXTURE / "MainProject" / "MainProject.csproj"),
+         prop, prop_upstream])
 
 
 def check_paths():
@@ -134,6 +141,31 @@ def check_no_broken_paths():
     return ok
 
 
+def check_upstream_excluded():
+    """The fork's bindings must win over upstream's identically named assembly.
+
+    UpstreamLibModule depends on upstream GodotSharp the way any real
+    third-party Godot library does. Both packages ship a GodotSharp.dll with the
+    same assembly identity, so if upstream's reaches the build the main project
+    fails to compile against the fork's API (CS0117 on
+    LookupScriptsInReferencedAssemblies). The SDK is supposed to keep it out.
+    """
+    deps = OUTPUT / "MainProject.deps.json"
+    if not deps.is_file():
+        print(f"  FAIL {deps.name} missing")
+        return False
+    ok = True
+    for pkg in re.findall(r'"(GodotSharp/[^"]+)"', deps.read_text(encoding="utf-8")):
+        print(f"  FAIL upstream {pkg} reached the output")
+        ok = False
+    if not (OUTPUT / "GodotSharp.dll").is_file():
+        print("  FAIL GodotSharp.dll is not in the output at all")
+        ok = False
+    if ok:
+        print("  PASS upstream GodotSharp excluded, fork's bindings used")
+    return ok
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", help="Fork package version (default: detect from .feed)")
@@ -149,8 +181,10 @@ def main():
     paths_ok = check_paths()
     print("\nPath sanity:")
     sanity_ok = check_no_broken_paths()
+    print("\nBindings:")
+    bindings_ok = check_upstream_excluded()
 
-    if not (paths_ok and sanity_ok):
+    if not (paths_ok and sanity_ok and bindings_ok):
         sys.exit("\nFAIL: multi-assembly integration test failed.")
     print("\nPASS: every type carries the script path its location calls for.")
 

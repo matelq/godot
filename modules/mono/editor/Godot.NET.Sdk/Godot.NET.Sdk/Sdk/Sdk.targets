@@ -36,6 +36,27 @@
     <PackageReference Include="CrackTower.Godot.Sharp" IsImplicitlyDefined="true" Version="$(PackageVersion_GodotSharp)" />
     <PackageReference Include="CrackTower.Godot.SharpEditor" IsImplicitlyDefined="true" Version="$(PackageVersion_GodotSharp)" Condition=" '$(Configuration)' == 'Debug' " />
   </ItemGroup>
+
+  <!--
+  Fork-only. This fork ships its bindings under a different package id but the
+  same assembly name, so CrackTower.Godot.Sharp and upstream's GodotSharp both
+  produce GodotSharp.dll with identical assembly identities. NuGet sees two
+  unrelated package ids and reports no conflict, and since essentially every
+  third-party Godot library depends on upstream GodotSharp, its assembly gets
+  pulled in alongside ours and can win the reference. The build then fails in
+  generated code, because upstream's assembly has no
+  ScriptManagerBridge.LookupScriptsInReferencedAssemblies (CS0117).
+
+  Declaring the upstream package directly makes it beat any transitive request,
+  and excluding all of its assets keeps it out of the compilation, the output
+  and deps.json. It is still restored — that download is the price of the fix.
+
+  The version is an open-ended range so that a library asking for a newer
+  GodotSharp unifies upward instead of failing as a downgrade (NU1605).
+  -->
+  <ItemGroup Condition=" '$(DisableImplicitGodotSharpReferences)' != 'true' and '$(DisableImplicitUpstreamGodotSharpExclusion)' != 'true' ">
+    <PackageReference Include="GodotSharp" IsImplicitlyDefined="true" Version="[$(PackageVersion_UpstreamGodotSharp),)" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
   <Target Name="CheckGodotDotNetReferences" BeforeTargets="Build" Condition=" '$(EnableGodotDotNetPreview)' != 'true' ">
     <Error Text="The project or one of its dependencies references Godot .NET packages which are incompatible with the active Godot C# bindings. The active C# bindings is GodotSharp." Condition="$([System.String]::Copy('%(Reference.Identity)').Contains('Godot.Bindings.dll'))" />
   </Target>
