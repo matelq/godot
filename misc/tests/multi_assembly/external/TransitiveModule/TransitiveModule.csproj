@@ -1,0 +1,22 @@
+<!--
+  Packed as a NuGet package and referenced by ExternalModule, never by the Godot
+  project directly. Covers the transitive case: a [GlobalClass] two assemblies
+  away from the project still has to be discovered.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <!-- Point GodotProjectDir at a directory the sources are NOT under, so the
+         generator classifies them as external and emits csharp:// paths. -->
+    <GodotProjectDir>$(MSBuildProjectDirectory)\__external__\</GodotProjectDir>
+    <DefineConstants>GODOT;TOOLS;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CrackTower.Godot.Sharp" Version="$(GodotForkVersion)" />
+    <PackageReference Include="CrackTower.Godot.SourceGenerators" Version="$(GodotForkVersion)"
+        OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

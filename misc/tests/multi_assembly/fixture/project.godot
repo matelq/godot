@@ -1,0 +1,18 @@
+; Minimal Godot project used by the multi-assembly integration test.
+; See ../README.md.
+
+config_version=5
+
+[application]
+
+config/name="MultiAssemblyFixture"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[dotnet]
+
+; Without solution_directory/project_directory the engine does not treat this
+; as a C# project and never loads the assembly, so no assembly-backed classes
+; get registered.
+project/assembly_name="MainProject"
+project/solution_directory="."
+project/project_directory="MainProject"

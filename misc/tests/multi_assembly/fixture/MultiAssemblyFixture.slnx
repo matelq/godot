@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="ExportDebug" />
+    <BuildType Name="ExportRelease" />
+  </Configurations>
+  <Project Path="InTreeModule/InTreeModule.csproj">
+    <BuildType Project="Debug" />
+  </Project>
+  <Project Path="MainProject/MainProject.csproj" />
+</Solution>

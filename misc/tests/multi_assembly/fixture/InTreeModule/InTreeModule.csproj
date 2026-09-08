@@ -1,0 +1,16 @@
+<!--
+  Lives under the Godot project directory, so its scripts must keep ordinary
+  res:// paths. Guards against the fork over-applying csharp:// to everything.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CrackTower.Godot.Sharp" Version="$(GodotForkVersion)" />
+    <PackageReference Include="CrackTower.Godot.SourceGenerators" Version="$(GodotForkVersion)"
+        OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

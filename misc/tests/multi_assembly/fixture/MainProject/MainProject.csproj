@@ -1,0 +1,20 @@
+<!-- Deliberately unversioned: verify.py generates a global.json pinning the SDK
+     to the version under test. The Sdk attribute is resolved before properties
+     exist, so $(GodotForkVersion) cannot be used here, and hardcoding a version
+     would freeze the fixture on whichever release it was written against.
+     Note the editor rewrites this line to a pinned version if it ever opens the
+     fixture — revert that before committing. -->
+<Project Sdk="CrackTower.Godot.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MainProject</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ExternalModule pulls in TransitiveModule, so the project references one
+         assembly and has to discover scripts in two. -->
+    <PackageReference Include="ExternalModule" Version="1.0.0" />
+    <ProjectReference Include="..\InTreeModule\InTreeModule.csproj" />
+  </ItemGroup>
+</Project>

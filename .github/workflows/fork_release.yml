@@ -96,6 +96,26 @@ jobs:
           path: nupkgs/*.nupkg
           retention-days: 1
 
+  test-multi-assembly:
+    name: Multi-assembly integration test
+    runs-on: ubuntu-latest
+    needs: assemblies
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nupkgs
+          path: misc/tests/multi_assembly/.feed
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Exercises the packages that are about to be published, before they are.
+      - name: Verify assembly-backed script paths
+        run: python3 misc/tests/multi_assembly/verify.py
+
   build-windows:
     name: Windows ${{ matrix.target }}
     runs-on: windows-latest
@@ -318,7 +338,9 @@ jobs:
   release:
     name: Package and publish
     runs-on: ubuntu-latest
-    needs: [glue, assemblies, build-windows, package-macos]
+    # test-multi-assembly gates publishing: a broken script-path regression must
+    # not reach nuget.org, where versions can never be replaced.
+    needs: [glue, assemblies, test-multi-assembly, build-windows, package-macos]
     timeout-minutes: 30
     permissions:
       contents: write

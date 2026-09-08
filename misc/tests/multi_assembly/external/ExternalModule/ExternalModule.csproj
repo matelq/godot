@@ -1,0 +1,21 @@
+<!--
+  Packed as a NuGet package and referenced directly by the Godot project.
+  Sources live outside the project directory, so its [GlobalClass] types are
+  reachable only through csharp:// paths.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <GodotProjectDir>$(MSBuildProjectDirectory)\__external__\</GodotProjectDir>
+    <DefineConstants>GODOT;TOOLS;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CrackTower.Godot.Sharp" Version="$(GodotForkVersion)" />
+    <PackageReference Include="CrackTower.Godot.SourceGenerators" Version="$(GodotForkVersion)"
+        OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="TransitiveModule" Version="1.0.0" />
+  </ItemGroup>
+</Project>

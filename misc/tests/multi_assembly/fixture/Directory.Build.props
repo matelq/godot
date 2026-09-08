@@ -1,0 +1,30 @@
+<Project>
+  <!-- Keep bin/obj out of the res:// tree; Godot would otherwise import the
+       build output as project assets. -->
+  <PropertyGroup>
+    <GodotProjectDir>$(MSBuildThisFileDirectory)</GodotProjectDir>
+    <!-- OutputPath/IntermediateOutputPath are pinned explicitly, not left to be
+         derived: Godot.NET.Sdk re-defaults GodotProjectDir to the project's own
+         directory, which would scatter each module's output into its own
+         .godot/ instead of the project's. -->
+    <BaseOutputPath>$(GodotProjectDir).godot\mono\temp\bin\</BaseOutputPath>
+    <OutputPath>$(GodotProjectDir).godot\mono\temp\bin\$(Configuration)\</OutputPath>
+    <BaseIntermediateOutputPath>$(GodotProjectDir).godot\mono\temp\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(GodotProjectDir).godot\mono\temp\obj\$(MSBuildProjectName)\$(Configuration)\</IntermediateOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Godot loads assemblies from the output directory, so package DLLs have
+         to be copied there rather than resolved out of the NuGet cache via
+         deps.json — otherwise the engine never sees the referenced assemblies. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <!-- Redirecting the Base* paths moves them out of the default item excludes,
+         so anything landing in a project-local obj/ or bin/ would get globbed
+         into the compilation — duplicating the generated assembly attributes. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+
+    <!-- Godot.NET.Sdk sets these itself; plain Microsoft.NET.Sdk modules need
+         them so the source generator emits editor-only members. -->
+    <DefineConstants Condition="!$(DefineConstants.Contains('GODOT'))">GODOT;TOOLS;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+</Project>
