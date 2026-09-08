@@ -1,0 +1,385 @@
+name: 📦 Fork Release
+
+on:
+  push:
+    tags:
+      - "*-conv.*"
+  workflow_dispatch:
+
+concurrency:
+  group: fork-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SCONS_FLAGS: >-
+    module_mono_enabled=yes
+    debug_symbols=no
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+jobs:
+  glue:
+    name: Generate Mono glue
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      godot_version: ${{ steps.ver.outputs.godot_version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      conv_suffix: ${{ steps.ver.outputs.conv_suffix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version info
+        id: ver
+        run: |
+          GV=$(python3 -c "d={}; exec(open('version.py').read(), d); print(f\"{d['major']}.{d['minor']}.{d['patch']}\")")
+          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${GV}-conv.1"; fi
+          echo "godot_version=${GV}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "conv_suffix=${TAG#${GV}-}" >> "$GITHUB_OUTPUT"
+
+      # Our patches add no ClassDB entries, so the generated glue is identical to
+      # upstream's — reuse their binary instead of building an editor just for this.
+      - name: Generate glue from upstream editor
+        run: |
+          GV="${{ steps.ver.outputs.godot_version }}"
+          curl -fsSL --retry 5 -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GV}-stable/Godot_v${GV}-stable_mono_linux_x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          "/tmp/godot/Godot_v${GV}-stable_mono_linux_x86_64/Godot_v${GV}-stable_mono_linux.x86_64" \
+            --headless --generate-mono-glue modules/mono/glue
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mono-glue
+          path: modules/mono/glue
+          retention-days: 1
+
+  assemblies:
+    name: Build .NET assemblies
+    runs-on: ubuntu-latest
+    needs: glue
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mono-glue
+          path: modules/mono/glue
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build assemblies and pack nupkgs
+        env:
+          GODOT_FORK_PACKAGE_SUFFIX: ${{ needs.glue.outputs.conv_suffix }}
+        run: |
+          python3 modules/mono/build_scripts/build_assemblies.py \
+            --godot-output-dir ./bin --push-nupkgs-local ./nupkgs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godotsharp
+          path: bin/GodotSharp
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs/*.nupkg
+          retention-days: 1
+
+  build-windows:
+    name: Windows ${{ matrix.target }}
+    runs-on: windows-latest
+    needs: glue
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [editor, template_debug, template_release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: mono-glue
+          path: modules/mono/glue
+
+      - name: Setup Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Download Direct3D 12 SDK components
+        shell: sh
+        id: d3d12-sdk
+        continue-on-error: true
+        run: |
+          if python ./misc/scripts/install_d3d12_sdk_windows.py; then
+            echo "D3D12_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Direct3D 12 SDK install failed, building without it."
+            echo "D3D12_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download pre-built ANGLE
+        shell: sh
+        id: angle-sdk
+        continue-on-error: true
+        run: |
+          if python ./misc/scripts/install_angle.py; then
+            echo "ANGLE_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ANGLE SDK install failed, building without it."
+            echo "ANGLE_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download pre-built AccessKit
+        shell: sh
+        id: accesskit-sdk
+        continue-on-error: true
+        run: |
+          if python ./misc/scripts/install_accesskit.py; then
+            echo "ACCESSKIT_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AccessKit SDK install failed, building without it."
+            echo "ACCESSKIT_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download WinRT components
+        shell: sh
+        continue-on-error: true
+        run: python ./misc/scripts/install_winrt.py
+
+      - name: Compilation
+        shell: sh
+        run: |
+          scons platform=windows target=${{ matrix.target }} ${{ env.SCONS_FLAGS }} \
+            d3d12=${{ steps.d3d12-sdk.outputs.D3D12_ENABLED }} \
+            accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} \
+            angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} \
+            cache_path="${{ github.workspace }}/.scons_cache" cache_limit=6
+
+      - name: Prepare artifact
+        shell: pwsh
+        run: |
+          Remove-Item bin/build_deps -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item bin/* -Include *.exp,*.lib,*.pdb -Force -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.target }}
+          path: bin/*
+          retention-days: 1
+
+  build-macos:
+    name: macOS ${{ matrix.target }}
+    runs-on: macos-latest
+    needs: glue
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [editor, template_debug, template_release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: mono-glue
+          path: modules/mono/glue
+
+      - name: Setup Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Setup Vulkan SDK
+        id: vulkan-sdk
+        continue-on-error: true
+        run: |
+          if sh misc/scripts/install_vulkan_sdk_macos.sh; then
+            echo "VULKAN_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Vulkan SDK install failed, building without Vulkan."
+            echo "VULKAN_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download pre-built ANGLE
+        shell: sh
+        id: angle-sdk
+        continue-on-error: true
+        run: |
+          if python ./misc/scripts/install_angle.py; then
+            echo "ANGLE_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ANGLE SDK install failed, building without it."
+            echo "ANGLE_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download pre-built AccessKit
+        shell: sh
+        id: accesskit-sdk
+        continue-on-error: true
+        run: |
+          if python3 ./misc/scripts/install_accesskit.py; then
+            echo "ACCESSKIT_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AccessKit SDK install failed, building without it."
+            echo "ACCESSKIT_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compilation (x86_64)
+        run: |
+          scons platform=macos target=${{ matrix.target }} arch=x86_64 ${{ env.SCONS_FLAGS }} \
+            vulkan=${{ steps.vulkan-sdk.outputs.VULKAN_ENABLED }} \
+            accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} \
+            angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} \
+            cache_path="${{ github.workspace }}/.scons_cache" cache_limit=6
+
+      - name: Compilation (arm64)
+        run: |
+          scons platform=macos target=${{ matrix.target }} arch=arm64 ${{ env.SCONS_FLAGS }} \
+            vulkan=${{ steps.vulkan-sdk.outputs.VULKAN_ENABLED }} \
+            accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} \
+            angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} \
+            cache_path="${{ github.workspace }}/.scons_cache" cache_limit=6
+
+      - name: Make universal binary
+        run: |
+          T=${{ matrix.target }}
+          lipo -create "bin/godot.macos.$T.x86_64.mono" "bin/godot.macos.$T.arm64.mono" \
+            -output "bin/godot.macos.$T.universal.mono"
+          rm "bin/godot.macos.$T.x86_64.mono" "bin/godot.macos.$T.arm64.mono"
+          rm -rf bin/build_deps
+          strip -S "bin/godot.macos.$T.universal.mono" || true
+          chmod +x "bin/godot.macos.$T.universal.mono"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: bin/*
+          retention-days: 1
+
+  package-macos:
+    name: Package macOS bundles
+    runs-on: macos-latest
+    needs: [glue, assemblies, build-macos]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macos-*
+          path: bin
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: godotsharp
+          path: GodotSharp
+
+      - name: Build editor app bundle
+        run: |
+          TAG="${{ needs.glue.outputs.tag }}"
+          cp -r misc/dist/macos_tools.app ./Godot.app
+          mkdir -p Godot.app/Contents/{MacOS,Resources}
+          cp bin/godot.macos.editor.universal.mono Godot.app/Contents/MacOS/Godot
+          chmod +x Godot.app/Contents/MacOS/Godot
+          cp -r GodotSharp Godot.app/Contents/Resources/GodotSharp
+          codesign --force --timestamp --options=runtime \
+            --entitlements misc/dist/macos/editor.entitlements -s - Godot.app
+          zip -q -9 -r "Godot_v${TAG}_mono_macos.universal.zip" Godot.app
+
+      - name: Build export template bundle
+        run: |
+          cp -r misc/dist/macos_template.app ./macos_template.app
+          mkdir -p macos_template.app/Contents/MacOS
+          cp bin/godot.macos.template_debug.universal.mono \
+            macos_template.app/Contents/MacOS/godot_macos_debug.universal
+          cp bin/godot.macos.template_release.universal.mono \
+            macos_template.app/Contents/MacOS/godot_macos_release.universal
+          chmod +x macos_template.app/Contents/MacOS/*
+          zip -q -9 -r macos.zip macos_template.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-packaged
+          path: |
+            Godot_v*_mono_macos.universal.zip
+            macos.zip
+          retention-days: 1
+
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+    needs: [glue, assemblies, build-windows, package-macos]
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: windows-*
+          path: winbin
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: godotsharp
+          path: GodotSharp
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-packaged
+          path: macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs
+
+      - name: Package Windows editor
+        run: |
+          TAG="${{ needs.glue.outputs.tag }}"
+          NAME="Godot_v${TAG}_mono_win64"
+          mkdir -p "dist/$NAME"
+          cp winbin/godot.windows.editor.x86_64.mono.exe "dist/$NAME/$NAME.exe"
+          cp winbin/godot.windows.editor.x86_64.mono.console.exe "dist/$NAME/${NAME}_console.exe"
+          cp -r GodotSharp "dist/$NAME/GodotSharp"
+          (cd dist && zip -qr "$NAME.zip" "$NAME" && rm -rf "$NAME")
+
+      - name: Package export templates
+        run: |
+          TAG="${{ needs.glue.outputs.tag }}"
+          mkdir -p templates
+          echo "${{ needs.glue.outputs.godot_version }}.stable.mono" > templates/version.txt
+          cp winbin/godot.windows.template_debug.x86_64.mono.exe templates/windows_debug_x86_64.exe
+          cp winbin/godot.windows.template_debug.x86_64.mono.console.exe templates/windows_debug_x86_64_console.exe
+          cp winbin/godot.windows.template_release.x86_64.mono.exe templates/windows_release_x86_64.exe
+          cp winbin/godot.windows.template_release.x86_64.mono.console.exe templates/windows_release_x86_64_console.exe
+          cp macos/macos.zip templates/macos.zip
+          zip -qr "dist/Godot_v${TAG}_mono_export_templates.tpz" templates
+
+      - name: Collect macOS editor zip
+        run: cp macos/Godot_v*_mono_macos.universal.zip dist/
+
+      - name: Checksums
+        run: cd dist && sha256sum * | tee SHA256SUMS.txt
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.glue.outputs.tag }}" \
+            --title "${{ needs.glue.outputs.tag }}" \
+            --notes "Fork build of Godot ${{ needs.glue.outputs.godot_version }} with multi-assembly C# support. Binaries are unsigned." \
+            dist/*
+
+      - name: Push nupkgs to nuget.org
+        if: github.ref_type == 'tag'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          for pkg in nupkgs/*.nupkg; do
+            dotnet nuget push "$pkg" --source https://api.nuget.org/v3/index.json \
+              --api-key "$NUGET_API_KEY" --skip-duplicate
+          done
