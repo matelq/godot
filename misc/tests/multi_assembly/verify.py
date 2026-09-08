@@ -51,7 +51,10 @@ EXPECTED = {
 
 def run(cmd):
     print(f"+ {' '.join(str(c) for c in cmd)}", flush=True)
-    subprocess.run(cmd, check=True)
+    # Run from this directory so NuGet discovers the nuget.config next to it —
+    # config lookup walks up from the working directory, not the project file,
+    # so invoking the script from elsewhere would silently lose the local feed.
+    subprocess.run(cmd, check=True, cwd=HERE)
 
 
 def detect_version():
