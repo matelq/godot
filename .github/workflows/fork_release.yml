@@ -35,10 +35,15 @@ jobs:
         id: ver
         run: |
           GV=$(python3 -c "d={}; exec(open('version.py').read(), d); print(f\"{d['major']}.{d['minor']}.{d['patch']}\")")
-          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${GV}.1"; fi
+          # Local builds rely on build_assemblies.py's default, so a tag must match it.
+          DEF_REV=$(sed -n 's/.*GODOT_FORK_PACKAGE_REVISION", "\([0-9]*\)".*/\1/p' modules/mono/build_scripts/build_assemblies.py)
+          if [ "${{ github.ref_type }}" = "tag" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${GV}.${DEF_REV}"; fi
           REV="${TAG##*.}"
           if [ "${TAG%.*}" != "$GV" ]; then
             echo "::error::Tag '$TAG' does not match version.py base '$GV'"; exit 1
+          fi
+          if [ "$REV" != "$DEF_REV" ]; then
+            echo "::error::Tag revision '$REV' does not match the default in build_assemblies.py ('$DEF_REV'); bump it first"; exit 1
           fi
           echo "godot_version=${GV}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -199,6 +204,59 @@ jobs:
           path: bin/*
           retention-days: 1
 
+  # ponytail: built on the runner's glibc (ubuntu-22.04 = 2.35), so older distros
+  # can't run it; upstream's buildroot SDK is the fix if that ever matters.
+  build-linux:
+    name: Linux ${{ matrix.target }}
+    runs-on: ubuntu-22.04
+    needs: glue
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [editor, template_debug, template_release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/download-artifact@v4
+        with:
+          name: mono-glue
+          path: modules/mono/glue
+
+      - name: Setup dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-bin
+
+      - name: Setup Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Download pre-built AccessKit
+        id: accesskit-sdk
+        continue-on-error: true
+        run: |
+          if python ./misc/scripts/install_accesskit.py; then
+            echo "ACCESSKIT_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AccessKit SDK install failed, building without it."
+            echo "ACCESSKIT_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compilation
+        run: |
+          scons platform=linuxbsd target=${{ matrix.target }} ${{ env.SCONS_FLAGS }} \
+            accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }} \
+            cache_path="${{ github.workspace }}/.scons_cache" cache_limit=6
+          rm -rf bin/build_deps
+          strip bin/godot.linuxbsd.* || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.target }}
+          path: bin/*
+          retention-days: 1
+
   build-macos:
     name: macOS ${{ matrix.target }}
     runs-on: macos-latest
@@ -340,7 +398,7 @@ jobs:
     runs-on: ubuntu-latest
     # test-multi-assembly gates publishing: a broken script-path regression must
     # not reach nuget.org, where versions can never be replaced.
-    needs: [glue, assemblies, test-multi-assembly, build-windows, package-macos]
+    needs: [glue, assemblies, test-multi-assembly, build-windows, build-linux, package-macos]
     timeout-minutes: 30
     permissions:
       contents: write
@@ -350,6 +408,11 @@ jobs:
         with:
           pattern: windows-*
           path: winbin
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: linux-*
+          path: linuxbin
           merge-multiple: true
       - uses: actions/download-artifact@v4
         with:
@@ -374,6 +437,16 @@ jobs:
           cp -r GodotSharp "dist/$NAME/GodotSharp"
           (cd dist && zip -qr "$NAME.zip" "$NAME" && rm -rf "$NAME")
 
+      - name: Package Linux editor
+        run: |
+          TAG="${{ needs.glue.outputs.tag }}"
+          NAME="Godot_v${TAG}_mono_linux_x86_64"
+          mkdir -p "dist/$NAME"
+          cp linuxbin/godot.linuxbsd.editor.x86_64.mono "dist/$NAME/Godot_v${TAG}_mono_linux.x86_64"
+          chmod +x "dist/$NAME/Godot_v${TAG}_mono_linux.x86_64"
+          cp -r GodotSharp "dist/$NAME/GodotSharp"
+          (cd dist && zip -qry "$NAME.zip" "$NAME" && rm -rf "$NAME")
+
       - name: Package export templates
         run: |
           TAG="${{ needs.glue.outputs.tag }}"
@@ -383,6 +456,9 @@ jobs:
           cp winbin/godot.windows.template_debug.x86_64.mono.console.exe templates/windows_debug_x86_64_console.exe
           cp winbin/godot.windows.template_release.x86_64.mono.exe templates/windows_release_x86_64.exe
           cp winbin/godot.windows.template_release.x86_64.mono.console.exe templates/windows_release_x86_64_console.exe
+          cp linuxbin/godot.linuxbsd.template_debug.x86_64.mono templates/linux_debug.x86_64
+          cp linuxbin/godot.linuxbsd.template_release.x86_64.mono templates/linux_release.x86_64
+          chmod +x templates/linux_*.x86_64
           cp macos/macos.zip templates/macos.zip
           zip -qr "dist/Godot_v${TAG}_mono_export_templates.tpz" templates
 
@@ -391,6 +467,13 @@ jobs:
 
       - name: Checksums
         run: cd dist && sha256sum * | tee SHA256SUMS.txt
+
+      # Lets a workflow_dispatch run's output be inspected or attached by hand.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          retention-days: 7
 
       - name: Create GitHub release
         if: github.ref_type == 'tag'

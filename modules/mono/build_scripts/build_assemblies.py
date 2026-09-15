@@ -307,8 +307,10 @@ def generate_sdk_package_versions():
     # multiple fork rebuilds against the same upstream base. A fourth version part
     # keeps these stable releases; a "-suffix" would make them SemVer pre-releases,
     # which NuGet hides from restore unless callers opt in.
-    # Bump when re-publishing against an unchanged upstream version.
-    fork_revision = os.environ.get("GODOT_FORK_PACKAGE_REVISION", "1")
+    # The default is the latest published revision, so a local build of this branch
+    # produces the same versions as the release binaries. Bump it before tagging
+    # a re-publish against an unchanged upstream version; CI rejects a mismatch.
+    fork_revision = os.environ.get("GODOT_FORK_PACKAGE_REVISION", "2")
     if version_status == "stable" and fork_revision:
         godotsharp_version_str += "." + fork_revision
 
