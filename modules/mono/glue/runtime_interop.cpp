@@ -1122,7 +1122,13 @@ void godotsharp_array_set_typed(Array *p_self, uint32_t p_elem_type, const Strin
 	StringName elem_class_name = *p_elem_class_name;
 	if (p_elem_script && p_elem_script->is_valid()) {
 		elem_script_variant = Variant(p_elem_script->ptr());
-		elem_class_name = p_elem_script->ptr()->get_instance_base_type();
+		// The script may not have its type info populated yet if it hasn't finished reloading.
+		// Keep the class name provided by the caller instead of overwriting it with an empty
+		// one, which would make set_typed fail.
+		StringName script_base_name = p_elem_script->ptr()->get_instance_base_type();
+		if (script_base_name != StringName()) {
+			elem_class_name = script_base_name;
+		}
 	}
 	p_self->set_typed(p_elem_type, elem_class_name, p_elem_script->ptr());
 }
@@ -1286,13 +1292,23 @@ void godotsharp_dictionary_set_typed(Dictionary *p_self, uint32_t p_key_type, co
 	StringName key_class_name = *p_key_class_name;
 	if (p_key_script && p_key_script->is_valid()) {
 		key_script_variant = Variant(p_key_script->ptr());
-		key_class_name = p_key_script->ptr()->get_instance_base_type();
+		// The script may not have its type info populated yet if it hasn't finished reloading.
+		// Keep the class name provided by the caller instead of overwriting it with an empty
+		// one, which would make set_typed fail.
+		StringName key_script_base_name = p_key_script->ptr()->get_instance_base_type();
+		if (key_script_base_name != StringName()) {
+			key_class_name = key_script_base_name;
+		}
 	}
 	Variant value_script_variant;
 	StringName value_class_name = *p_value_class_name;
 	if (p_value_script && p_value_script->is_valid()) {
 		value_script_variant = Variant(p_value_script->ptr());
-		value_class_name = p_value_script->ptr()->get_instance_base_type();
+		// Same as above, for the value type.
+		StringName value_script_base_name = p_value_script->ptr()->get_instance_base_type();
+		if (value_script_base_name != StringName()) {
+			value_class_name = value_script_base_name;
+		}
 	}
 	p_self->set_typed(p_key_type, key_class_name, p_key_script->ptr(), p_value_type, value_class_name, p_value_script->ptr());
 }
