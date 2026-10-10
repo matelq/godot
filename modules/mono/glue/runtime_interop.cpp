@@ -339,7 +339,20 @@ void godotsharp_internal_editor_file_system_update_files(const PackedStringArray
 bool godotsharp_internal_script_load(const String *p_path, Ref<CSharpScript> *r_dest) {
 	Ref<Resource> res = ResourceLoader::load(*p_path);
 	if (res.is_valid()) {
-		memnew_placement(r_dest, Ref<CSharpScript>(res));
+		Ref<CSharpScript> script(res);
+
+		// Assembly-backed scripts returned from the resource cache during an assembly
+		// reload are still invalidated. Re-register them in the managed bridge and
+		// prepare them for use, so typed collections referencing them can be
+		// reconstructed before exports are rebuilt.
+		if (script.is_valid() && GDMonoCache::godot_api_cache_updated && p_path->begins_with("csharp://")) {
+			String script_path = *p_path;
+			if (GDMonoCache::managed_callbacks.ScriptManagerBridge_AddScriptBridge(script.ptr(), &script_path)) {
+				CSharpScript::prepare_reload_registered_script(script);
+			}
+		}
+
+		memnew_placement(r_dest, Ref<CSharpScript>(script));
 		return true;
 	} else {
 		memnew_placement(r_dest, Ref<CSharpScript>());

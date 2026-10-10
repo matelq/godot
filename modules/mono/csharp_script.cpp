@@ -2300,6 +2300,17 @@ void CSharpScript::reload_registered_script(Ref<CSharpScript> p_script) {
 #endif
 }
 
+void CSharpScript::prepare_reload_registered_script(Ref<CSharpScript> p_script) {
+	if (p_script->valid || !p_script->reload_invalidated) {
+		// Not pending reload, or already prepared.
+		return;
+	}
+
+	p_script->valid = true;
+
+	update_script_class_info(p_script);
+}
+
 // Extract information about the script using the mono class.
 void CSharpScript::update_script_class_info(Ref<CSharpScript> p_script) {
 	TypeInfo type_info;
