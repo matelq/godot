@@ -848,12 +848,9 @@ void CSharpLanguage::reload_assemblies(bool p_soft_reload) {
 			bool valid = GDMonoCache::managed_callbacks.ScriptManagerBridge_AddScriptBridge(scr.ptr(), &script_path);
 
 			if (valid) {
-				scr->valid = true;
-
-				CSharpScript::update_script_class_info(scr);
-
 				// Ensure that the next call to CSharpScript::reload will refresh the exports
 				scr->reload_invalidated = true;
+				CSharpScript::prepare_reload_registered_script(scr);
 			}
 		}
 	}

@@ -345,7 +345,7 @@ bool godotsharp_internal_script_load(const String *p_path, Ref<CSharpScript> *r_
 		// reload are still invalidated. Re-register them in the managed bridge and
 		// prepare them for use, so typed collections referencing them can be
 		// reconstructed before exports are rebuilt.
-		if (script.is_valid() && GDMonoCache::godot_api_cache_updated && p_path->begins_with("csharp://")) {
+		if (script.is_valid() && !script->is_valid() && GDMonoCache::godot_api_cache_updated && p_path->begins_with("csharp://")) {
 			String script_path = *p_path;
 			if (GDMonoCache::managed_callbacks.ScriptManagerBridge_AddScriptBridge(script.ptr(), &script_path)) {
 				CSharpScript::prepare_reload_registered_script(script);

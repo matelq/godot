@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -15,7 +15,7 @@ namespace Godot
         private bool _disposed;
         private static readonly Type _cachedType = typeof(GodotObject);
 
-        private static readonly Dictionary<Type, StringName?> _nativeNames = new Dictionary<Type, StringName?>();
+        private static readonly ConcurrentDictionary<Type, StringName?> _nativeNames = new ConcurrentDictionary<Type, StringName?>();
 
         internal IntPtr NativePtr;
         private bool _memoryOwn;
@@ -241,6 +241,9 @@ namespace Godot
 
             name = field?.GetValue(null) as StringName;
 
+            // Only the native base type may be cached. Script types belong to a collectible
+            // assembly load context, so caching them here would root that context and prevent
+            // it from being unloaded on assembly reload ("Failed to unload assemblies").
             _nativeNames[baseType] = name;
 
             return name;
