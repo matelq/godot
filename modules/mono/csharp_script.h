@@ -230,6 +230,17 @@ protected:
 public:
 	static void reload_registered_script(Ref<CSharpScript> p_script);
 
+	/**
+	 * Marks a registered script as valid and updates its type information, without
+	 * rebuilding its exports yet. Used while reloading assemblies so typed
+	 * collections referencing the script can be reconstructed before exports
+	 * are rebuilt.
+	 *
+	 * IMPORTANT: The script must already be registered in the managed bridge map.
+	 * The reload pass later calls `reload_registered_script` to rebuild the exports.
+	 */
+	static void prepare_reload_registered_script(Ref<CSharpScript> p_script);
+
 	bool can_instantiate() const override;
 	StringName get_instance_base_type() const override;
 	ScriptInstance *instance_create(Object *p_this) override;
