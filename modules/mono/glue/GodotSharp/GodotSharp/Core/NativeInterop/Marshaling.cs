@@ -213,6 +213,15 @@ namespace Godot.NativeInterop
                 return;
             }
 
+            // Use the native base class name from the managed cache instead of relying on
+            // CSharpScript::get_instance_base_type, which the native side would otherwise use when a script
+            // is passed. The script's type info is only populated after it has been reloaded, so while
+            // scripts are still being loaded (e.g. exports reconstructed during a reload) that call returns
+            // an empty name and Array::set_typed/Dictionary::set_typed fail with
+            // "Script class can only be set together with base class name".
+            StringName? nativeBaseName = GodotObject.InternalGetClassNativeBaseName(typeof(T));
+            className = nativeBaseName != null ? (godot_string_name)nativeBaseName.NativeValue : default;
+
             godot_ref scriptRef = default;
 
             if (!GodotObject.IsNativeClass(typeof(T)))
@@ -221,17 +230,6 @@ namespace Godot.NativeInterop
                 {
                     Godot.Bridge.ScriptManagerBridge.GetOrLoadOrCreateScriptForType(typeof(T), &scriptRef);
                 }
-
-                // Don't call GodotObject.InternalGetClassNativeBaseName here!
-                // godot_dictionary_set_typed and godot_array_set_typed will call CSharpScript::get_instance_base_type
-                // when a script is passed, because this is better for performance than using reflection to find the
-                // native base type.
-                className = default;
-            }
-            else
-            {
-                StringName? nativeBaseName = GodotObject.InternalGetClassNativeBaseName(typeof(T));
-                className = nativeBaseName != null ? (godot_string_name)nativeBaseName.NativeValue : default;
             }
 
             script = scriptRef;

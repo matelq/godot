@@ -848,12 +848,9 @@ void CSharpLanguage::reload_assemblies(bool p_soft_reload) {
 			bool valid = GDMonoCache::managed_callbacks.ScriptManagerBridge_AddScriptBridge(scr.ptr(), &script_path);
 
 			if (valid) {
-				scr->valid = true;
-
-				CSharpScript::update_script_class_info(scr);
-
 				// Ensure that the next call to CSharpScript::reload will refresh the exports
 				scr->reload_invalidated = true;
+				CSharpScript::prepare_reload_registered_script(scr);
 			}
 		}
 	}
@@ -2298,6 +2295,17 @@ void CSharpScript::reload_registered_script(Ref<CSharpScript> p_script) {
 		_register_csharp_global_class(script_path, p_script->type_info);
 	}
 #endif
+}
+
+void CSharpScript::prepare_reload_registered_script(Ref<CSharpScript> p_script) {
+	if (p_script->valid || !p_script->reload_invalidated) {
+		// Not pending reload, or already prepared.
+		return;
+	}
+
+	p_script->valid = true;
+
+	update_script_class_info(p_script);
 }
 
 // Extract information about the script using the mono class.

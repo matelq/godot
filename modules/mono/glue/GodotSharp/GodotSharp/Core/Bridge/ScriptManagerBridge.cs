@@ -807,6 +807,9 @@ namespace Godot.Bridge
                     // NOTE:
                     // Currently, we reload all scripts, not only the ones from the unloaded ALC.
                     // As such, we need to handle this case instead of treating it as an error.
+                    // Remove the entry in case the script was registered early while it was still pending
+                    // reload, in which case it is never consumed by the branch below.
+                    _ = _scriptDataForReload.TryRemove(scriptPtr, out _);
                     NativeFuncs.godotsharp_internal_reload_registered_script(scriptPtr);
                     return godot_bool.True;
                 }
